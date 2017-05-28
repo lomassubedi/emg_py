@@ -10,17 +10,20 @@ import numpy as np
 from matplotlib import animation
 
 import random
-
+import time
+import serial
 
 class Window(QtGui.QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
 
+        self.ser = serial.Serial("/dev/ttyACM0", 115200)
+
         # a figure instance to plot on
         self.figure = plt.figure()
 
         # fig = plt.figure()
-        self.ax = plt.axes(xlim=(0, 2), ylim=(-2, 2))
+        self.ax = plt.axes(xlim=(0, 100), ylim=(-50, 1200))
         self.line, = self.ax.plot([], [], lw=2)
 
         # this is the Canvas Widget that displays the `figure`
@@ -46,6 +49,20 @@ class Window(QtGui.QDialog):
         layout.addWidget(self.buttonS)
         self.setLayout(layout)
 
+        # while True:
+        #     try:
+        #         data = self.ser.readline().rstrip()
+        #         data.replace("\r\n", "")
+        #         data = int(data)
+        #         # data = (float(data)/1000)
+        #         print "This is data :" + str(data)
+        #     except ValueError:
+        #         print "Data Error"
+        #         pass
+        #     time.sleep(1)
+
+
+
     def init(self):
         # x_val = np.linspace(1, 100)
         # self.line.set_data([5]*100, [5]*100)
@@ -54,12 +71,19 @@ class Window(QtGui.QDialog):
 
     # animation function.  This is called sequentially
     def animate(self, i):
-        x = np.linspace(0, 2, 1000)
-        y = np.sin(2 * np.pi * (x - 0.01 * i))
-        print (x, y)
+        x = np.linspace(0, 2, 100)
+        print x
+        # print len(x)
+        y = [10] * len(x)
+        # print y
+        # y = np.sin(2 * np.pi * (x - 0.01 * i))
+        # print (x, y)
         # x = [0.5]*500
         # y = [0.5]*500
+        # y = 0.5
         self.line.set_data(x, y)
+        # print dir(self.line)
+
         return self.line,
 
     def plot(self):
