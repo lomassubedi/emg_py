@@ -1,13 +1,3 @@
-###################################################################
-#                                                                 #
-#                     PLOTTING A LIVE GRAPH                       #
-#                  ----------------------------                   #
-#            EMBED A MATPLOTLIB ANIMATION INSIDE YOUR             #
-#            OWN GUI!                                             #
-#                                                                 #
-###################################################################
-
-
 import sys
 import os
 from PyQt4 import QtGui
@@ -38,6 +28,29 @@ def setCustomSize(x, width, height):
 
 ''''''
 
+class ThredQT(QtCore.QThread):
+
+    def __init__(self):
+        self.figMain = CustomFigCanvas()
+        self.ser = serial.Serial("/dev/ttyACM1", 115200)
+        pass
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        while True:
+            data = self.ser.readline().rstrip()
+            data.replace("\r\n", "")
+            try:
+                self.emit(QtCore.SIGNAL("add_val(float)"), data)
+                # mySrc.data_signal.emit(int(data))
+            except:
+                pass
+            pass
+        pass
+
+
 class CustomMainWindow(QtGui.QMainWindow):
 
     def __init__(self):
@@ -56,15 +69,20 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.FRAME_A)
 
         # Place the zoom button
-        self.zoomBtn = QtGui.QPushButton(text = 'zoom in')
-        setCustomSize(self.zoomBtn, 100, 50)
-        self.zoomBtn.clicked.connect(self.zoomBtnAction)
-        self.LAYOUT_A.addWidget(self.zoomBtn, *(0,0))
+        # self.zoomBtn = QtGui.QPushButton(text = 'zoom in')
+        # setCustomSize(self.zoomBtn, 100, 50)
+        # self.zoomBtn.clicked.connect(self.zoomBtnAction)
+        # self.LAYOUT_A.addWidget(self.zoomBtn, *(0,0))
 
         # self.zoomBtnOut = QtGui.QPushButton(text = 'zoom out')
         # setCustomSize(self.zoomBtnOut, 100, 50)
         # self.zoomBtnOut.clicked.connect(self.zoomBtnOutAction)
         # self.LAYOUT_A.addWidget(self.zoomBtnOut, *(0,2))
+
+        # self.exitButton = QtGui.QPushButton(text = "Exit")
+        # setCustomSize(self.exitButton, 100, 50)
+        # self.exitButton.clicked.connect(self.exitButtonAction)
+        # self.LAYOUT_A.addWidget(self.exitButton, *(1,0))
 
         # Place the matplotlib figure
         self.myFig = CustomFigCanvas()
@@ -72,13 +90,13 @@ class CustomMainWindow(QtGui.QMainWindow):
 
         # Add the callbackfunc to ..
         # myDataLoop = threading.Thread(name = 'myDataLoop', target = dataSendLoop, daemon = True, args = (self.addData_callbackFunc,))
-        myDataLoop = threading.Thread(name = 'myDataLoop', target = dataSendLoop, args = (self.addData_callbackFunc,))
-        myDataLoop.start()
+        # self.myDataLoop = threading.Thread(name = 'myDataLoop', target = dataSendLoop, args = (self.addData_callbackFunc,))
+        # self.myDataLoop = multiprocessing.Process(name = 'myDataLoop', target = dataSendLoop, args = (self.addData_callbackFunc,))
+        # self.myDataLoop.start()
 
         self.show()
 
     ''''''
-
 
     def zoomBtnAction(self):
         print("zoom in")
@@ -93,6 +111,12 @@ class CustomMainWindow(QtGui.QMainWindow):
     def addData_callbackFunc(self, value):
         # print("Add data: " + str(value))
         self.myFig.addData(value)
+
+    # def exitButtonAction(self):
+        # self.myDataLoop.terminate()
+        # p.terminate()
+        # sys.exit()
+        # pass
 
 
 
@@ -120,8 +144,14 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
         self.y = (self.n * 0.0) + 50
 
         # The window
-        self.fig = Figure(figsize=(5,5), dpi=100)
+        self.fig = Figure(figsize=(5,7), dpi=100)
         self.ax1 = self.fig.add_subplot(111)
+
+        self.get_thread = ThredQT()
+
+        self.connect(self.get_thread, QtCore.SIGNAL("add_val(float)"), self.addData)
+
+        self.get_thread.start()
 
 
         # self.ax1 settings
@@ -143,21 +173,8 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
     def new_frame_seq(self):
         return iter(range(self.n.size))
 
-    def _init_draw(self):
-        lines = [self.line1, self.line1_tail, self.line1_head]
-        for l in lines:
-            l.set_data([], [])
-
     def addData(self, value):
         self.addedData.append(value)
-
-    def zoomIn(self, value):
-        bottom = self.ax1.get_ylim()[0]
-        top = self.ax1.get_ylim()[1]
-        bottom += value
-        top -= value
-        self.ax1.set_ylim(bottom,top)
-        self.draw()
 
 
     def _step(self, *args):
@@ -184,51 +201,47 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
         self._drawn_artists = [self.line1, self.line1_tail, self.line1_head]
 
 
-
 ''' End Class '''
-
 
 # You need to setup a signal slot mechanism, to 
 # send data to your GUI in a thread-safe way.
 # Believe me, if you don't do this right, things
 # go very very wrong..
-class Communicate(QtCore.QObject):
+# class Communicate(QtCore.QObject):
+#
+#     data_signal = QtCore.pyqtSignal(float)
+#
+# ''' End Class '''
 
-    data_signal = QtCore.pyqtSignal(float)
-    
-''' End Class '''
 
 
-
-def dataSendLoop(addData_callbackFunc):
-    # Setup the signal-slot mechanism.
-    mySrc = Communicate()
-    mySrc.data_signal.connect(addData_callbackFunc)
-
-    # Simulate some data
-    # n = np.linspace(0, 499, 500)
-    # y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
-    # i = 0
-
-    # while(True):
-    #     if(i > 499):
-    #         i = 0
-    #     time.sleep(0.1)
-    #     mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
-    #     i += 1
-    ser = serial.Serial("/dev/ttyACM0", 115200)
-    while True:
-        data = ser.readline().rstrip()
-        data.replace("\r\n","")
-        try:
-            mySrc.data_signal.emit(int(data))
-        except:
-            pass
-        pass
+# def dataSendLoop(addData_callbackFunc):
+#     # Setup the signal-slot mechanism.
+#     mySrc = Communicate()
+#     mySrc.data_signal.connect(addData_callbackFunc)
+#
+#     # Simulate some data
+#     # n = np.linspace(0, 499, 500)
+#     # y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
+#     # i = 0
+#
+#     # while(True):
+#     #     if(i > 499):
+#     #         i = 0
+#     #     time.sleep(0.1)
+#     #     mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
+#     #     i += 1
+#     # ser = serial.Serial("/dev/ttyACM1", 115200)
+#     while True:
+#         data = ser.readline().rstrip()
+#         data.replace("\r\n","")
+#         try:
+#             mySrc.data_signal.emit(int(data))
+#         except:
+#             pass
+#         pass
     ###
 ###
-
-
 
 
 if __name__== '__main__':
