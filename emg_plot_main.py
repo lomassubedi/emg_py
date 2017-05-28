@@ -1,13 +1,3 @@
-###################################################################
-#                                                                 #
-#                     PLOTTING A LIVE GRAPH                       #
-#                  ----------------------------                   #
-#            EMBED A MATPLOTLIB ANIMATION INSIDE YOUR             #
-#            OWN GUI!                                             #
-#                                                                 #
-###################################################################
-
-
 import sys
 import os
 from PyQt4 import QtGui
@@ -22,19 +12,19 @@ from matplotlib.figure import Figure
 from matplotlib.animation import TimedAnimation
 from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-import time
 import threading
 import serial
+import winsound
 
 
-def setCustomSize(x, width, height):
-    sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
-    sizePolicy.setHorizontalStretch(0)
-    sizePolicy.setVerticalStretch(0)
-    sizePolicy.setHeightForWidth(x.sizePolicy().hasHeightForWidth())
-    x.setSizePolicy(sizePolicy)
-    x.setMinimumSize(QtCore.QSize(width, height))
-    x.setMaximumSize(QtCore.QSize(width, height))
+# def setCustomSize(x, width, height):
+#     sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+#     sizePolicy.setHorizontalStretch(0)
+#     sizePolicy.setVerticalStretch(0)
+#     sizePolicy.setHeightForWidth(x.sizePolicy().hasHeightForWidth())
+#     x.setSizePolicy(sizePolicy)
+#     x.setMinimumSize(QtCore.QSize(width, height))
+#     x.setMaximumSize(QtCore.QSize(width, height))
 
 
 ''''''
@@ -51,36 +41,47 @@ class CustomMainWindow(QtGui.QMainWindow):
         # Create FRAME_A
         self.FRAME_A = QtGui.QFrame(self)
         self.FRAME_A.setStyleSheet("QWidget { background-color: %s }" % QtGui.QColor(210, 210, 235, 255).name())
-        self.LAYOUT_A = QtGui.QGridLayout()
+        self.LAYOUT_A = QtGui.QVBoxLayout()
         self.FRAME_A.setLayout(self.LAYOUT_A)
         self.setCentralWidget(self.FRAME_A)
 
-        # Place the zoom button
-        self.zoomBtn = QtGui.QPushButton(text='zoom in')
-        setCustomSize(self.zoomBtn, 100, 50)
-        self.zoomBtn.clicked.connect(self.zoomBtnAction)
-        self.LAYOUT_A.addWidget(self.zoomBtn, *(0, 0))
-
-        # self.zoomBtnOut = QtGui.QPushButton(text = 'zoom out')
-        # setCustomSize(self.zoomBtnOut, 100, 50)
-        # self.zoomBtnOut.clicked.connect(self.zoomBtnOutAction)
-        # self.LAYOUT_A.addWidget(self.zoomBtnOut, *(0,2))
-
-        self.exitButton = QtGui.QPushButton(text = "Exit")
-        setCustomSize(self.exitButton, 100, 50)
-        self.exitButton.clicked.connect(self.exitButtonAction)
-        self.LAYOUT_A.addWidget(self.exitButton, *(1,0))
-
-
         # Place the matplotlib figure
         self.myFig = CustomFigCanvas()
-        self.LAYOUT_A.addWidget(self.myFig, *(0, 1))
+        self.LAYOUT_A.addWidget(self.myFig)
+
+        self.layoutControls = QtGui.QHBoxLayout()
+
+        # self.searchButton = QtGui.QPushButton(text="Search")
+        # # setCustomSize(self.exitButton, 100, 50)
+        # self.searchButton.clicked.connect(self.searchDev)
+        # self.layoutControls.addWidget(self.searchButton)
+        #
+        # self.searchButton = QtGui.QPushButton(text="Search")
+        # # setCustomSize(self.exitButton, 100, 50)
+        # self.searchButton.clicked.connect(self.searchDev)
+        # self.layoutControls.addWidget(self.searchButton)
+
+        self.ButtonStartPlot= QtGui.QPushButton(text = 'Start')
+        # setCustomSize(self.ButtonStartPlot, 100, 50)
+        self.ButtonStartPlot.clicked.connect(self.startPlot)
+        self.layoutControls.addWidget(self.ButtonStartPlot)
+
+        # self.ButtonStopPlot= QtGui.QPushButton(text = 'Stop')
+        # # setCustomSize(self.ButtonStopPlot, 100, 50)
+        # self.ButtonStopPlot.clicked.connect(self.stopPlot)
+        # self.layoutControls.addWidget(self.ButtonStopPlot)
+
+        self.exitButton = QtGui.QPushButton(text="Exit")
+        # setCustomSize(self.exitButton, 100, 50)
+        self.exitButton.clicked.connect(self.exitButtonAction)
+        self.layoutControls.addWidget(self.exitButton)
+
+        self.LAYOUT_A.addLayout(self.layoutControls)
 
         # Add the callbackfunc to ..
-        # myDataLoop = threading.Thread(name = 'myDataLoop', target = dataSendLoop, daemon = True, args = (self.addData_callbackFunc,))
         self.myDataLoop = threading.Thread(name='myDataLoop', target=dataSendLoop, args=(self.addData_callbackFunc,))
         self.myDataLoop.daemon = True
-        self.myDataLoop.start()
+        # self.myDataLoop.start()
 
         self.show()
 
@@ -101,12 +102,30 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.myFig.addData(value)
 
     def exitButtonAction(self):
-        # self.myDataLoop.terminate()
         sys.exit()
+        pass
+
+    def startPlot(self):
+        self.myDataLoop.start()
+        # self.show()
+        pass
+
+    def stopPlot(self):
+        # self.myDataLoop.kill()
         pass
 
 
 ''' End Class '''
+
+class SerialRead:
+    def __init__(self):
+        self.ser = serial.Serial("/dev/ttyACM0", 115200)
+
+    def getData(self):
+        data = self.ser.readline().rstrip()
+        data.replace("\r\n", "")
+        return data
+
 
 
 class CustomFigCanvas(FigureCanvas, TimedAnimation):
@@ -118,14 +137,7 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
         # The data
         self.xlim = 200
         self.n = np.linspace(0, self.xlim - 1, self.xlim)
-        a = []
-        b = []
-        a.append(2.0)
-        a.append(4.0)
-        a.append(2.0)
-        b.append(4.0)
-        b.append(3.0)
-        b.append(4.0)
+
         self.y = (self.n * 0.0) + 50
 
         # The window
@@ -134,7 +146,8 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
 
         # self.ax1 settings
         # self.ax1.set_xlabel('time')
-        self.ax1.set_ylabel('raw data')
+        self.ax1.set_xticklabels([])        #remove numbering X-axis
+        self.ax1.set_ylabel('EMG Value')
         self.line1 = Line2D([], [], color='blue')
         self.line1_tail = Line2D([], [], color='red', linewidth=2)
         self.line1_head = Line2D([], [], color='red', marker='o', markeredgecolor='r')
@@ -220,21 +233,17 @@ def dataSendLoop(addData_callbackFunc):
     #     time.sleep(0.1)
     #     mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
     #     i += 1
-    ser = serial.Serial("/dev/ttyACM0", 115200)
+    mySerial = SerialRead()
     while True:
-        data = ser.readline().rstrip()
-        data.replace("\r\n", "")
         try:
-            mySrc.data_signal.emit(int(data))
+            mySrc.data_signal.emit(int(mySerial.getData()))
+            if(int(mySerial.getData()) > 500):
+                winsound.Beep(500, 1)
         except:
             pass
         pass
         ###
-
-
 ###
-
-
 
 
 if __name__ == '__main__':
