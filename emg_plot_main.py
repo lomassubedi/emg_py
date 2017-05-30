@@ -14,7 +14,8 @@ from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import threading
 import serial
-import winsound
+import time
+# import winsound
 
 
 # def setCustomSize(x, width, height):
@@ -34,10 +35,6 @@ class CustomMainWindow(QtGui.QMainWindow):
     def __init__(self):
         super(CustomMainWindow, self).__init__()
 
-        # Define the geometry of the main window
-        self.setGeometry(300, 300, 800, 400)
-        self.setWindowTitle("EMG Plot")
-
         # Create FRAME_A
         self.FRAME_A = QtGui.QFrame(self)
         self.FRAME_A.setStyleSheet("QWidget { background-color: %s }" % QtGui.QColor(210, 210, 235, 255).name())
@@ -45,44 +42,75 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.FRAME_A.setLayout(self.LAYOUT_A)
         self.setCentralWidget(self.FRAME_A)
 
+
         # Place the matplotlib figure
         self.myFig = CustomFigCanvas()
         self.LAYOUT_A.addWidget(self.myFig)
 
         self.layoutControls = QtGui.QHBoxLayout()
 
-        # self.searchButton = QtGui.QPushButton(text="Search")
-        # # setCustomSize(self.exitButton, 100, 50)
-        # self.searchButton.clicked.connect(self.searchDev)
-        # self.layoutControls.addWidget(self.searchButton)
-        #
-        # self.searchButton = QtGui.QPushButton(text="Search")
-        # # setCustomSize(self.exitButton, 100, 50)
-        # self.searchButton.clicked.connect(self.searchDev)
-        # self.layoutControls.addWidget(self.searchButton)
+        self.flag_pause = True
+
+        self.searchButton = QtGui.QPushButton(text="Search")
+        # setCustomSize(self.exitButton, 100, 50)
+        self.searchButton.clicked.connect(self.searchButtonAction)
+        self.searchButton.setStatusTip('Search for EMG hardware device. Make sure that bluetooth is turned on.')
+        self.layoutControls.addWidget(self.searchButton)
+
+        self.comPortItems = ["Select a device"]
+        self.selectDevice = QtGui.QComboBox()
+        self.selectDevice.addItems(self.comPortItems)
+        self.selectDevice.setStatusTip("Select EMG device")
+        self.layoutControls.addWidget(self.selectDevice)
+        # self.selectDevice.addItems(self.pgm_lngs)
+
+        self.connectButton = QtGui.QPushButton(text="Connect")
+        # setCustomSize(self.exitButton, 100, 50)
+        self.connectButton.clicked.connect(self.connectButtonAction)
+        self.connectButton.setStatusTip('Connect EMG hardware device via bluetooth.')
+        self.layoutControls.addWidget(self.connectButton)
 
         self.ButtonStartPlot= QtGui.QPushButton(text = 'Start')
         # setCustomSize(self.ButtonStartPlot, 100, 50)
         self.ButtonStartPlot.clicked.connect(self.startPlot)
+        self.ButtonStartPlot.setStatusTip('Start plotting')
         self.layoutControls.addWidget(self.ButtonStartPlot)
 
-        # self.ButtonStopPlot= QtGui.QPushButton(text = 'Stop')
-        # # setCustomSize(self.ButtonStopPlot, 100, 50)
-        # self.ButtonStopPlot.clicked.connect(self.stopPlot)
-        # self.layoutControls.addWidget(self.ButtonStopPlot)
+        self.ButtonStopPlot= QtGui.QPushButton(text = 'Stop')
+        # setCustomSize(self.ButtonStopPlot, 100, 50)
+        self.ButtonStopPlot.clicked.connect(self.stopPlot)
+        self.ButtonStopPlot.setStatusTip('Pause plotting')
+        self.layoutControls.addWidget(self.ButtonStopPlot)
 
         self.exitButton = QtGui.QPushButton(text="Exit")
         # setCustomSize(self.exitButton, 100, 50)
         self.exitButton.clicked.connect(self.exitButtonAction)
+        self.exitButton.setStatusTip('Exit application')
         self.layoutControls.addWidget(self.exitButton)
 
+        #TODO add clear button to clear canvas
+        #TODO add status bar device status
         self.LAYOUT_A.addLayout(self.layoutControls)
+
+        exitAction = QtGui.QAction('&Exit', self)
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit application')
+        exitAction.triggered.connect(sys.exit)
+
+        self.statusBar()
+
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(exitAction)
+
+        # Define the geometry of the main window
+        self.setGeometry(300, 300, 800, 400)
+        self.setWindowTitle("EMG Plot")
 
         # Add the callbackfunc to ..
         self.myDataLoop = threading.Thread(name='myDataLoop', target=dataSendLoop, args=(self.addData_callbackFunc,))
         self.myDataLoop.daemon = True
-        # self.myDataLoop.start()
-
+        self.myDataLoop.start()
         self.show()
 
     ''''''
@@ -99,40 +127,52 @@ class CustomMainWindow(QtGui.QMainWindow):
         pass
 
     def addData_callbackFunc(self, value):
-        self.myFig.addData(value)
+        if not self.flag_pause:
+            self.myFig.addData(value)
+        else:
+            pass
 
     def exitButtonAction(self):
         sys.exit()
         pass
 
     def startPlot(self):
-        self.myDataLoop.start()
-        # self.show()
+        self.ButtonStartPlot.setEnabled(False)
+        self.ButtonStopPlot.setEnabled(True)
+        self.flag_pause = False
         pass
 
     def stopPlot(self):
-        # self.myDataLoop.kill()
+        self.ButtonStopPlot.setEnabled(False)
+        self.ButtonStartPlot.setEnabled(True)
+        self.flag_pause = True
         pass
 
+    def searchButtonAction(self):
+        print "Pressed search !"
+        pass
+
+    def connectButtonAction(self):
+        print "Pressed Connect !"
+        pass
 
 ''' End Class '''
 
 class SerialRead:
     def __init__(self):
-        self.ser = serial.Serial("/dev/ttyACM0", 115200)
+        # self.ser = serial.Serial("/dev/ttyACM0", 115200)
+        self.ser = serial.Serial("COM3", 115200)
 
     def getData(self):
         data = self.ser.readline().rstrip()
         data.replace("\r\n", "")
         return data
 
-
-
 class CustomFigCanvas(FigureCanvas, TimedAnimation):
     def __init__(self):
 
         self.addedData = []
-        print(matplotlib.__version__)
+        # print(matplotlib.__version__)
 
         # The data
         self.xlim = 200
@@ -143,10 +183,11 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
         # The window
         self.fig = Figure(figsize=(5, 5), dpi=100)
         self.ax1 = self.fig.add_subplot(111)
+        self.ax1.grid()
 
         # self.ax1 settings
-        # self.ax1.set_xlabel('time')
         self.ax1.set_xticklabels([])        #remove numbering X-axis
+
         self.ax1.set_ylabel('EMG Value')
         self.line1 = Line2D([], [], color='blue')
         self.line1_tail = Line2D([], [], color='red', linewidth=2)
@@ -161,23 +202,24 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
         TimedAnimation.__init__(self, self.fig, interval=50, blit=True)
 
     def new_frame_seq(self):
+        # x = iter(range(self.n.size))
         return iter(range(self.n.size))
 
-    def _init_draw(self):
-        lines = [self.line1, self.line1_tail, self.line1_head]
-        for l in lines:
-            l.set_data([], [])
+    # def _init_draw(self):
+    #     lines = [self.line1, self.line1_tail, self.line1_head]
+    #     for l in lines:
+    #         l.set_data([], [])
 
     def addData(self, value):
         self.addedData.append(value)
 
-    def zoomIn(self, value):
-        bottom = self.ax1.get_ylim()[0]
-        top = self.ax1.get_ylim()[1]
-        bottom += value
-        top -= value
-        self.ax1.set_ylim(bottom, top)
-        self.draw()
+    # def zoomIn(self, value):
+    #     bottom = self.ax1.get_ylim()[0]
+    #     top = self.ax1.get_ylim()[1]
+    #     bottom += value
+    #     top -= value
+    #     self.ax1.set_ylim(bottom, top)
+    #     self.draw()
 
     def _step(self, *args):
         # Extends the _step() method for the TimedAnimation class.
@@ -223,25 +265,29 @@ def dataSendLoop(addData_callbackFunc):
     mySrc.data_signal.connect(addData_callbackFunc)
 
     # Simulate some data
-    # n = np.linspace(0, 499, 500)
-    # y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
-    # i = 0
+    n = np.linspace(0, 499, 500)
+    y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
+    y = y*10
+    i = 0
 
-    # while(True):
-    #     if(i > 499):
-    #         i = 0
-    #     time.sleep(0.1)
-    #     mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
-    #     i += 1
-    mySerial = SerialRead()
-    while True:
-        try:
-            mySrc.data_signal.emit(int(mySerial.getData()))
-            if(int(mySerial.getData()) > 500):
-                winsound.Beep(500, 1)
-        except:
-            pass
-        pass
+
+    while(True):
+        if(i > 499):
+            i = 0
+        time.sleep(0.1)
+        mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
+        i += 1
+
+    # ----------- EMG Data extraction --------------
+    # mySerial = SerialRead()
+    # while True:
+    #     try:
+            # mySrc.data_signal.emit(int(mySerial.getData()))
+            # if(int(mySerial.getData()) > 500):
+                # winsound.Beep(500, 1)
+        # except:
+        #     pass
+        # pass
         ###
 ###
 

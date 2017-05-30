@@ -13,11 +13,11 @@ import random
 import time
 import serial
 
-class Window(QtGui.QDialog):
+class Window(QtGui.QMainWindow):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
 
-        self.ser = serial.Serial("/dev/ttyACM0", 115200)
+        # self.ser = serial.Serial("/dev/ttyACM0", 115200)
 
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -44,10 +44,11 @@ class Window(QtGui.QDialog):
         # set the layout
         layout = QtGui.QVBoxLayout()
         # layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
+        # layout.addWidget(self.canvas)
         layout.addWidget(self.button)
         layout.addWidget(self.buttonS)
-        self.setLayout(layout)
+        self.setCentralWidget(self.canvas)
+        # self.setLayout(layout)
 
         # while True:
         #     try:
@@ -72,11 +73,11 @@ class Window(QtGui.QDialog):
     # animation function.  This is called sequentially
     def animate(self, i):
         x = np.linspace(0, 2, 100)
-        print x
+        # print x
         # print len(x)
-        y = [10] * len(x)
+        # y = [10] * len(x)
         # print y
-        # y = np.sin(2 * np.pi * (x - 0.01 * i))
+        y = np.sin(2 * np.pi * (x - 0.01 * i))
         # print (x, y)
         # x = [0.5]*500
         # y = [0.5]*500
