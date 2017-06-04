@@ -1,5 +1,6 @@
 import sys
 import os
+import glob
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 import functools
@@ -14,6 +15,7 @@ from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import threading
 import serial
+import serial.tools.list_ports
 import time
 # import winsound
 
@@ -33,7 +35,7 @@ import time
 
 class CustomMainWindow(QtGui.QMainWindow):
     def __init__(self):
-        super(CustomMainWindow, self).__init__()
+        super(CustomMainWindow, self).__init__()        
 
         # Create FRAME_A
         self.FRAME_A = QtGui.QFrame(self)
@@ -149,10 +151,37 @@ class CustomMainWindow(QtGui.QMainWindow):
         pass
 
     def searchButtonAction(self):
-        print "Pressed search !"
+
+        # if sys.platform.startswith('win'):
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+        # elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+            # this excludes your current terminal "/dev/tty"
+            # ports = glob.glob('/dev/tty[A-Za-z]*')
+        # elif sys.platform.startswith('darwin'):
+            # ports = glob.glob('/dev/tty.*')
+        # else:
+            # raise EnvironmentError('Unsupported platform')
+
+        self.result = []        
+        for port in ports:
+            try:
+                s = serial.Serial(port)
+                s.close()
+                self.result.append(port)
+            except (OSError, serial.SerialException):
+                pass                
         pass
 
-    def connectButtonAction(self):
+        # self.comPortItems = ["Select a device"]
+        for comPort in self.result:
+            self.comPortItems.append(comPort)
+        # del self.result
+        self.selectDevice.addItems(self.comPortItems)
+
+        for comPort in self.comPortItems:
+            self.comPortItems.remove(comPort)        
+
+    def connectButtonAction(self):                
         print "Pressed Connect !"
         pass
 
@@ -161,7 +190,35 @@ class CustomMainWindow(QtGui.QMainWindow):
 class SerialRead:
     def __init__(self):
         # self.ser = serial.Serial("/dev/ttyACM0", 115200)
-        self.ser = serial.Serial("COM3", 115200)
+
+        """ Lists serial port names
+
+            :raises EnvironmentError:
+                On unsupported or unknown platforms
+            :returns:
+                A list of the serial ports available on the system
+        """
+
+        # if sys.platform.startswith('win'):
+        #     ports = ['COM%s' % (i + 1) for i in range(256)]
+        # elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+        #     # this excludes your current terminal "/dev/tty"
+        #     ports = glob.glob('/dev/tty[A-Za-z]*')
+        # elif sys.platform.startswith('darwin'):
+        #     ports = glob.glob('/dev/tty.*')
+        # else:
+        #     raise EnvironmentError('Unsupported platform')
+
+        # self.result = []
+        # for port in ports:
+        #     try:
+        #         s = serial.Serial(port)
+        #         s.close()
+        #         result.append(port)
+        #     except (OSError, serial.SerialException):
+        #         pass        
+
+        # self.ser = serial.Serial("COM31", 115200)
 
     def getData(self):
         data = self.ser.readline().rstrip()
@@ -265,30 +322,30 @@ def dataSendLoop(addData_callbackFunc):
     mySrc.data_signal.connect(addData_callbackFunc)
 
     # Simulate some data
-    n = np.linspace(0, 499, 500)
-    y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
-    y = y*10
-    i = 0
+    # n = np.linspace(0, 499, 500)
+    # y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
+    # y = y*10
+    # i = 0
 
 
-    while(True):
-        if(i > 499):
-            i = 0
-        time.sleep(0.1)
-        mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
-        i += 1
+    # while(True):
+        # if(i > 499):
+            # i = 0
+        # time.sleep(0.1)
+        # mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
+        # i += 1
 
     # ----------- EMG Data extraction --------------
-    # mySerial = SerialRead()
-    # while True:
-    #     try:
-            # mySrc.data_signal.emit(int(mySerial.getData()))
-            # if(int(mySerial.getData()) > 500):
-                # winsound.Beep(500, 1)
-        # except:
-        #     pass
-        # pass
-        ###
+    mySerial = SerialRead()
+    while True:
+        try:
+            mySrc.data_signal.emit(int(mySerial.getData()))
+            if(int(mySerial.getData()) > 500):
+                winsound.Beep(500, 1)
+        except:
+            pass
+        pass
+        ##
 ###
 
 
