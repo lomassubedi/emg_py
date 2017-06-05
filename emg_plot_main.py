@@ -18,7 +18,7 @@ import threading
 import serial
 import serial.tools.list_ports
 import time
-# import winsound
+import winsound
 
 
 # def setCustomSize(x, width, height):
@@ -49,6 +49,10 @@ class ConfigureDialogue(QtGui.QDialog):
         self.selectDevice.addItem("Select a device")
         self.selectDevice.setEnabled(False)
 
+        # self.labelThreshold = QtGui.QLabel("Enable beep if value crosses")
+        # self.spinBoxThreshold = QtGui.QSpinBox()
+        # self.spinBoxThreshold.setMaximum(1000)
+
         self.searchButton = QtGui.QPushButton("Search")        
         self.searchButton.clicked.connect(self.searchButtonAction)        
 
@@ -57,22 +61,28 @@ class ConfigureDialogue(QtGui.QDialog):
         self.setButton.clicked.connect(self.setButtonAction)
         self.setButton.setEnabled(False)
 
+            
         self.layOutButtons = QtGui.QHBoxLayout()
+        # self.layOutThreshold = QtGui.QHBoxLayout()
 
         self.layOutButtons.addWidget(self.searchButton)
         self.layOutButtons.addWidget(self.setButton)
 
+        # self.layOutThreshold.addWidget(self.labelThreshold)
+        # self.layOutThreshold.addWidget(self.spinBoxThreshold)
 
         self.mainConfLayout = QtGui.QVBoxLayout()        
         self.mainConfLayout.addWidget(self.lableInfo)
         # self.mainConfLayout.addWidget(self.lableSearching)        
         self.mainConfLayout.addWidget(self.selectDevice)
+        # self.mainConfLayout.addLayout(self.layOutThreshold)
         self.mainConfLayout.addLayout(self.layOutButtons)
                 
         self.setLayout(self.mainConfLayout)                 
         # self.setGeometry(300, 300, 290, 150)   
         # self.setGeometry(639, 479, 200, 100)  
         self.setWindowIcon(QtGui.QIcon("ion-pulse.png"))             
+        # self.setFixedSize(220, 120)
         self.setFixedSize(220, 100)
         self.setWindowTitle("Configure device!")            
 
@@ -113,7 +123,10 @@ class ConfigureDialogue(QtGui.QDialog):
     def setButtonAction(self):                
         comPort_dict = {
             "port" : str(self.selectDevice.currentText())
+            # "thrs":self.spinBoxThreshold.value()
         }        
+        print comPort_dict
+
         with open ("config.json", "wb") as config_file:
             json.dump(comPort_dict, config_file)
             config_file.close()
@@ -156,7 +169,6 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.ButtonDeviceSetup.clicked.connect(self.actionConfigure)
         self.ButtonDeviceSetup.setStatusTip('Configure EMG hardware device.')
         self.layoutControls.addWidget(self.ButtonDeviceSetup)
-
         
         self.ButtonStartPlot= QtGui.QPushButton(text = 'Start')
         # setCustomSize(self.ButtonStartPlot, 100, 50)
@@ -209,35 +221,33 @@ class CustomMainWindow(QtGui.QMainWindow):
         # Add the callbackfunc to ..
         self.myDataLoop = threading.Thread(name='myDataLoop', target=dataSendLoop, args=(self.addData_callbackFunc,))
         self.myDataLoop.daemon = True        
+
+        # self.myBuzzLoop = threading.Thread(name='myBuzzLoop', target=send_data_buzz, args=(self.send_data_buzz,))
+        # self.myBuzzLoop.daemon = True
+
+        self.Freq = 2500 # Set Frequency To 2500 Hertz
+        self.Dur = 100 # Set Duration in ms
+        # winsound.Beep(self.Freq, self.Dur)
+
         self.show()    
-        # self.mySerial = None
-
-    def zoomBtnAction(self):
-        print("zoom in")
-        self.myFig.zoomIn(5)
-
-    ''''''
-
-    def zoomBtnOutAction(self):
-        print ("zoom out")
-        self.myFig.zoomOut(5)
-        pass
+        # self.mySerial = None    
 
     def addData_callbackFunc(self, value):
         if not self.flag_pause:
             self.myFig.addData(value)
         else:
-            pass
+            pass    
 
-    def exitButtonAction(self):
-        sys.exit()
-        pass
+    # def send_data_buzz(self, value):
+    #     print "data sent %d" %value        
+    #     winsound.Beep(self.Freq, self.Dur)
+    #     pass    
 
     def startPlot(self):
         global flag_start
 
         if not flag_start:
-            self.myDataLoop.start()
+            self.myDataLoop.start()            
             flag_start = True
 
         self.ButtonStartPlot.setEnabled(False)
@@ -257,6 +267,10 @@ class CustomMainWindow(QtGui.QMainWindow):
         confg_dialogue.exec_()
         self.ButtonStartPlot.setEnabled(True)
         self.ButtonDeviceSetup.setEnabled(False)
+        pass
+
+    def exitButtonAction(self):
+        sys.exit()
         pass
                 
 ''' End Class '''
@@ -331,35 +345,57 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
 # Believe me, if you don't do this right, things
 # go very very wrong..
 class Communicate(QtCore.QObject):
-    data_signal = QtCore.pyqtSignal(float)
+    data_signal = QtCore.pyqtSignal(float)    
+    data_signal_buzz = QtCore.pyqtSignal(float)
+    # emit_buzz = QtCore.pyqtSignal(float)
 
+
+# def myBuzzDataCapture(value):
+
+#     print "This is value %d" %value    
+
+#     # myBz = Communicate()    
+
+#     # myBz.emit_buzz
+#     Freq = 2500 # Set Frequency To 2500 Hertz
+#     Dur = 50 # Set Duration in ms
+#     if value 
+#     winsound.Beep(Freq, Dur)    
+
+#     pass
 
 ''' End Class '''
-
 def dataSendLoop(addData_callbackFunc):
     # Setup the signal-slot mechanism.
     mySrc = Communicate()
     mySrc.data_signal.connect(addData_callbackFunc)
 
+    # mySrc.data_signal_buzz.connect(myBuzzDataCapture)        
+
     with open('config.json', 'rb') as config_file:
         config_raw = json.load(config_file)
         config_file.close()
 
-    mySerial = serial.Serial(str(config_raw["port"]), 115200)
-
-    print "I'm Here !"
+    mySerial = serial.Serial(str(config_raw["port"]), 115200)    
             
     while True: 
         try:                         
             data = mySerial.readline().rstrip()
             data.replace("\r\n", "")
-            mySrc.data_signal.emit(int(data))                            
+            data = int(data)
+            mySrc.data_signal.emit(data) 
+            # if data >= config_raw["thrs"]:                            
+
             print   "data value : %d" %int(data)
         except ValueError:
             print "SerialException occured !"
             
         ##
 ###
+
+# self.myDataLoop = threading.Thread(name='myDataLoop', target=dataSendLoop, args=(self.addData_callbackFunc,))
+
+#         self.myDataLoop.daemon = True        
 
 
 if __name__ == '__main__':
