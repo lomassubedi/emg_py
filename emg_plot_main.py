@@ -38,23 +38,24 @@ flag_start = False
 class ConfigureDialogue(QtGui.QDialog):
     
     def __init__(self):
-        QtGui.QDialog.__init__(self)
-        # super(ConfigureDialogue, self).__init__()
+        QtGui.QDialog.__init__(self)        
 
         self.lableInfo = QtGui.QLabel("Select appropriate port for the device.")
+        # self.lableSearching = QtGui.QLabel("Searching for EMG device...")
+        # self.lableSearching.setHidden(True)
                     
-        self.comPortItems = ["Select a device"]
+        # self.comPortItems = ["Select a device"]
         self.selectDevice = QtGui.QComboBox()
+        self.selectDevice.addItem("Select a device")
+        self.selectDevice.setEnabled(False)
 
-        self.selectDevice.addItems(self.comPortItems)
-        # self.selectDevice.setStatusTip("Select EMG device")
-        # self.layoutControls.addWidget(self.selectDevice)
+        self.searchButton = QtGui.QPushButton("Search")        
+        self.searchButton.clicked.connect(self.searchButtonAction)        
 
-        self.searchButton = QtGui.QPushButton('Search', self)        
-        self.searchButton.clicked.connect(self.searchButtonAction)
 
-        self.setButton = QtGui.QPushButton('Set', self)        
+        self.setButton = QtGui.QPushButton("Set")        
         self.setButton.clicked.connect(self.setButtonAction)
+        self.setButton.setEnabled(False)
 
         self.layOutButtons = QtGui.QHBoxLayout()
 
@@ -62,18 +63,29 @@ class ConfigureDialogue(QtGui.QDialog):
         self.layOutButtons.addWidget(self.setButton)
 
 
-        self.mainConfLayout = QtGui.QVBoxLayout()
+        self.mainConfLayout = QtGui.QVBoxLayout()        
         self.mainConfLayout.addWidget(self.lableInfo)
+        # self.mainConfLayout.addWidget(self.lableSearching)        
         self.mainConfLayout.addWidget(self.selectDevice)
         self.mainConfLayout.addLayout(self.layOutButtons)
                 
-        self.setLayout(self.mainConfLayout)           
-        # self.setGeometry(300, 300, 290, 150)
-        self.setWindowTitle("Configure device port !")
-        # self.show()
+        self.setLayout(self.mainConfLayout)                 
+        # self.setGeometry(300, 300, 290, 150)   
+        # self.setGeometry(639, 479, 200, 100)  
+        self.setWindowIcon(QtGui.QIcon("ion-pulse.png"))             
+        self.setFixedSize(220, 100)
+        self.setWindowTitle("Configure device!")            
 
-    def searchButtonAction(self):
-        ports = ['COM%s' % (i + 1) for i in range(256)]        
+    def searchButtonAction(self):        
+        # self.lableSearching.setHidden(False)
+
+        # self.searchButton.setEnabled(True)
+        # self.setButton.setEnabled(False)
+        # self.selectDevice.setEnabled(False)
+
+        ports = ['COM%s' % (i + 1) for i in range(256)]   
+
+        self.searchButton.setEnabled(False)      
 
         self.result = []        
         for port in ports:
@@ -84,13 +96,16 @@ class ConfigureDialogue(QtGui.QDialog):
             except (OSError, serial.SerialException):
                 pass                
         pass        
-        # TODO remove duplicates
-        for comPort in self.result:
-            # print comPort
-            if not comPort in self.comPortItems:
-                self.comPortItems.append(comPort)
 
-        self.selectDevice.addItems(self.comPortItems)
+        currentItems = [self.selectDevice.itemText(i) for i in range(self.selectDevice.count())]        
+        for comPort in self.result:            
+            if comPort not in currentItems:
+                self.selectDevice.addItem(comPort)                        
+
+        # self.searchButton.setText("Search")            
+        self.searchButton.setEnabled(True)
+        self.setButton.setEnabled(True)
+        self.selectDevice.setEnabled(True)
 
         print "Pressed Search"
         pass
@@ -106,15 +121,25 @@ class ConfigureDialogue(QtGui.QDialog):
         pass    
 
 
-'''  Global Variables  '''
+class About(QtGui.QDialog):
+    
+    def __init__(self):
+        QtGui.QDialog.__init__(self)
+
+        self.buttonOkay = QtGui.QPushButton("OK")
+
+
+        self.setLayout(self.mainConfLayout)                         
+        self.setFixedSize(220, 100)
+        self.setWindowTitle("About")   
+
 
 class CustomMainWindow(QtGui.QMainWindow):
     def __init__(self):
         super(CustomMainWindow, self).__init__()        
 
         # Create FRAME_A
-        self.FRAME_A = QtGui.QFrame(self)
-        self.FRAME_A.setStyleSheet("QWidget { background-color: %s }" % QtGui.QColor(210, 210, 235, 255).name())
+        self.FRAME_A = QtGui.QFrame(self)        
         self.LAYOUT_A = QtGui.QVBoxLayout()
         self.FRAME_A.setLayout(self.LAYOUT_A)
         self.setCentralWidget(self.FRAME_A)
@@ -125,28 +150,7 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.LAYOUT_A.addWidget(self.myFig)
 
         self.layoutControls = QtGui.QHBoxLayout()
-
-        self.flag_pause = True
-
-        self.searchButton = QtGui.QPushButton(text="Search")
-        # setCustomSize(self.exitButton, 100, 50)
-        self.searchButton.clicked.connect(self.searchButtonAction)
-        self.searchButton.setStatusTip('Search for EMG hardware device. Make sure that bluetooth is turned on.')
-        self.layoutControls.addWidget(self.searchButton)
-
-        self.comPortItems = ["Select a device"]
-        self.selectDevice = QtGui.QComboBox()
-        self.selectDevice.addItems(self.comPortItems)
-        self.selectDevice.setStatusTip("Select EMG device")
-        self.layoutControls.addWidget(self.selectDevice)
-        # self.selectDevice.addItems(self.pgm_lngs)
-
-        # self.connectButton = QtGui.QPushButton(text="Connect")
-        # # setCustomSize(self.exitButton, 100, 50)
-        # self.connectButton.clicked.connect(self.connectButtonAction)
-        # self.connectButton.setStatusTip('Connect EMG hardware device via bluetooth.')
-        # self.layoutControls.addWidget(self.connectButton)
-
+        
         self.ButtonStartPlot= QtGui.QPushButton(text = 'Start')
         # setCustomSize(self.ButtonStartPlot, 100, 50)
         self.ButtonStartPlot.clicked.connect(self.startPlot)
@@ -157,6 +161,7 @@ class CustomMainWindow(QtGui.QMainWindow):
         # setCustomSize(self.ButtonStopPlot, 100, 50)
         self.ButtonStopPlot.clicked.connect(self.stopPlot)
         self.ButtonStopPlot.setStatusTip('Pause plotting')
+        self.ButtonStopPlot.setEnabled(False)
         self.layoutControls.addWidget(self.ButtonStopPlot)
 
         self.exitButton = QtGui.QPushButton(text="Exit")
@@ -177,7 +182,7 @@ class CustomMainWindow(QtGui.QMainWindow):
 
         configureAction = QtGui.QAction('&Configure Device', self)
         configureAction.setShortcut('Ctrl+P')
-        configureAction.setStatusTip('Configure about device')
+        configureAction.setStatusTip('Hardware device search and setting')
         configureAction.triggered.connect(self.actionConfigure)
 
         self.statusBar()
@@ -189,8 +194,9 @@ class CustomMainWindow(QtGui.QMainWindow):
         optionMenu.addAction(configureAction)
 
         # Define the geometry of the main window
+        self.setWindowIcon(QtGui.QIcon("ion-pulse.png"))             
         self.setGeometry(300, 300, 800, 400)
-        self.setWindowTitle("EMG Plot")
+        self.setWindowTitle("Arduino EMG : Demo version")
 
         # Add the callbackfunc to ..
         self.myDataLoop = threading.Thread(name='myDataLoop', target=dataSendLoop, args=(self.addData_callbackFunc,))
@@ -235,28 +241,7 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.ButtonStopPlot.setEnabled(False)
         self.ButtonStartPlot.setEnabled(True)
         self.flag_pause = True
-        pass
-
-    def searchButtonAction(self):
-                
-        ports = ['COM%s' % (i + 1) for i in range(256)]        
-
-        self.result = []        
-        for port in ports:
-            try:
-                s = serial.Serial(port)
-                s.close()
-                self.result.append(port)
-            except (OSError, serial.SerialException):
-                pass                
-        pass        
-        # TODO remove duplicates
-        for comPort in self.result:
-            # print comPort
-            if not comPort in self.comPortItems:
-                self.comPortItems.append(comPort)
-
-        self.selectDevice.addItems(self.comPortItems)
+        pass    
 
     def actionConfigure(self):
         confg_dialogue = ConfigureDialogue()
@@ -264,35 +249,12 @@ class CustomMainWindow(QtGui.QMainWindow):
         confg_dialogue.exec_()
         pass
                 
-    # def connectButtonAction(self):         
-    #     self.serialPort = self.selectDevice.currentText()
-    #     print "Selected Serial Port : " + str(self.serialPort)
-
-    #     self.mySerial = serial.Serial(str(self.serialPort), 115200)
-
-    #     print "single Data : " + str(self.mySerial.read())
-    #     time.sleep(0.5)
-
-    #     # print self.mySerial.isOpen()
-    #     self.myDataLoop.start()
-    #     print "Pressed Connect !"
-    #     pass
-
-# def getData():
-#     data = self.mySerial.readline().rstrip()
-#     data.replace("\r\n", "")
-#     return data
-
 ''' End Class '''
-
-
 
 class CustomFigCanvas(FigureCanvas, TimedAnimation):
     def __init__(self):
 
-        self.addedData = []
-        # print(matplotlib.__version__)
-
+        self.addedData = []        
         # The data
         self.xlim = 200
         self.n = np.linspace(0, self.xlim - 1, self.xlim)
@@ -373,16 +335,14 @@ def dataSendLoop(addData_callbackFunc):
         config_file.close()
 
     mySerial = serial.Serial(str(config_raw["port"]), 115200)
+
+    print "I'm Here !"
             
     while True: 
-        try:                 
-        # print int(mainWindw.getData())  
-        # mySrc.data_signal.emit(int(mainWindw.getData()))                
+        try:                         
             data = mySerial.readline().rstrip()
             data.replace("\r\n", "")
-            mySrc.data_signal.emit(int(data))                
-            # if(int(mySerial.getData()) > 500):
-                # winsound.Beep(500, 1)      
+            mySrc.data_signal.emit(int(data))                            
             print   "data value : %d" %int(data)
         except ValueError:
             print "SerialException occured !"
