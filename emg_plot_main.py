@@ -150,12 +150,20 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.LAYOUT_A.addWidget(self.myFig)
 
         self.layoutControls = QtGui.QHBoxLayout()
+
+        self.ButtonDeviceSetup = QtGui.QPushButton(text = 'Device Setup')
+        # setCustomSize(self.ButtonStartPlot, 100, 50)
+        self.ButtonDeviceSetup.clicked.connect(self.actionConfigure)
+        self.ButtonDeviceSetup.setStatusTip('Configure EMG hardware device.')
+        self.layoutControls.addWidget(self.ButtonDeviceSetup)
+
         
         self.ButtonStartPlot= QtGui.QPushButton(text = 'Start')
         # setCustomSize(self.ButtonStartPlot, 100, 50)
         self.ButtonStartPlot.clicked.connect(self.startPlot)
         self.ButtonStartPlot.setStatusTip('Start plotting')
         self.layoutControls.addWidget(self.ButtonStartPlot)
+        self.ButtonStartPlot.setEnabled(False)
 
         self.ButtonStopPlot= QtGui.QPushButton(text = 'Stop')
         # setCustomSize(self.ButtonStopPlot, 100, 50)
@@ -174,24 +182,24 @@ class CustomMainWindow(QtGui.QMainWindow):
         #TODO add status bar device status
         self.LAYOUT_A.addLayout(self.layoutControls)
 
-        exitAction = QtGui.QAction('&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(sys.exit)
+        # exitAction = QtGui.QAction('&Exit', self)
+        # exitAction.setShortcut('Ctrl+Q')
+        # exitAction.setStatusTip('Exit application')
+        # exitAction.triggered.connect(sys.exit)
 
 
-        configureAction = QtGui.QAction('&Configure Device', self)
-        configureAction.setShortcut('Ctrl+P')
-        configureAction.setStatusTip('Hardware device search and setting')
-        configureAction.triggered.connect(self.actionConfigure)
+        # configureAction = QtGui.QAction('&Configure Device', self)
+        # configureAction.setShortcut('Ctrl+P')
+        # configureAction.setStatusTip('Hardware device search and setting')
+        # configureAction.triggered.connect(self.actionConfigure)
 
         self.statusBar()
 
-        menubar = self.menuBar()
-        fileMenu = menubar.addMenu('&File')        
-        fileMenu.addAction(exitAction)
-        optionMenu = menubar.addMenu("&Option")
-        optionMenu.addAction(configureAction)
+        # menubar = self.menuBar()
+        # fileMenu = menubar.addMenu('&File')        
+        # fileMenu.addAction(exitAction)
+        # optionMenu = menubar.addMenu("&Option")
+        # optionMenu.addAction(configureAction)
 
         # Define the geometry of the main window
         self.setWindowIcon(QtGui.QIcon("ion-pulse.png"))             
@@ -247,6 +255,8 @@ class CustomMainWindow(QtGui.QMainWindow):
         confg_dialogue = ConfigureDialogue()
         confg_dialogue.show()
         confg_dialogue.exec_()
+        self.ButtonStartPlot.setEnabled(True)
+        self.ButtonDeviceSetup.setEnabled(False)
         pass
                 
 ''' End Class '''
@@ -314,6 +324,7 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
 
 
 ''' End Class '''
+
 
 # You need to setup a signal slot mechanism, to
 # send data to your GUI in a thread-safe way.
