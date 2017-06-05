@@ -1,6 +1,7 @@
 import sys
 import os
 import glob
+import json
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 import functools
@@ -32,6 +33,80 @@ import time
 
 ''''''
 
+flag_start = False
+
+class ConfigureDialogue(QtGui.QDialog):
+    
+    def __init__(self):
+        QtGui.QDialog.__init__(self)
+        # super(ConfigureDialogue, self).__init__()
+
+        self.lableInfo = QtGui.QLabel("Select appropriate port for the device.")
+                    
+        self.comPortItems = ["Select a device"]
+        self.selectDevice = QtGui.QComboBox()
+
+        self.selectDevice.addItems(self.comPortItems)
+        # self.selectDevice.setStatusTip("Select EMG device")
+        # self.layoutControls.addWidget(self.selectDevice)
+
+        self.searchButton = QtGui.QPushButton('Search', self)        
+        self.searchButton.clicked.connect(self.searchButtonAction)
+
+        self.setButton = QtGui.QPushButton('Set', self)        
+        self.setButton.clicked.connect(self.setButtonAction)
+
+        self.layOutButtons = QtGui.QHBoxLayout()
+
+        self.layOutButtons.addWidget(self.searchButton)
+        self.layOutButtons.addWidget(self.setButton)
+
+
+        self.mainConfLayout = QtGui.QVBoxLayout()
+        self.mainConfLayout.addWidget(self.lableInfo)
+        self.mainConfLayout.addWidget(self.selectDevice)
+        self.mainConfLayout.addLayout(self.layOutButtons)
+                
+        self.setLayout(self.mainConfLayout)           
+        # self.setGeometry(300, 300, 290, 150)
+        self.setWindowTitle("Configure device port !")
+        # self.show()
+
+    def searchButtonAction(self):
+        ports = ['COM%s' % (i + 1) for i in range(256)]        
+
+        self.result = []        
+        for port in ports:
+            try:
+                s = serial.Serial(port)
+                s.close()
+                self.result.append(port)
+            except (OSError, serial.SerialException):
+                pass                
+        pass        
+        # TODO remove duplicates
+        for comPort in self.result:
+            # print comPort
+            if not comPort in self.comPortItems:
+                self.comPortItems.append(comPort)
+
+        self.selectDevice.addItems(self.comPortItems)
+
+        print "Pressed Search"
+        pass
+    
+    def setButtonAction(self):                
+        comPort_dict = {
+            "port" : str(self.selectDevice.currentText())
+        }        
+        with open ("config.json", "wb") as config_file:
+            json.dump(comPort_dict, config_file)
+            config_file.close()
+        self.close()    
+        pass    
+
+
+'''  Global Variables  '''
 
 class CustomMainWindow(QtGui.QMainWindow):
     def __init__(self):
@@ -66,11 +141,11 @@ class CustomMainWindow(QtGui.QMainWindow):
         self.layoutControls.addWidget(self.selectDevice)
         # self.selectDevice.addItems(self.pgm_lngs)
 
-        self.connectButton = QtGui.QPushButton(text="Connect")
-        # setCustomSize(self.exitButton, 100, 50)
-        self.connectButton.clicked.connect(self.connectButtonAction)
-        self.connectButton.setStatusTip('Connect EMG hardware device via bluetooth.')
-        self.layoutControls.addWidget(self.connectButton)
+        # self.connectButton = QtGui.QPushButton(text="Connect")
+        # # setCustomSize(self.exitButton, 100, 50)
+        # self.connectButton.clicked.connect(self.connectButtonAction)
+        # self.connectButton.setStatusTip('Connect EMG hardware device via bluetooth.')
+        # self.layoutControls.addWidget(self.connectButton)
 
         self.ButtonStartPlot= QtGui.QPushButton(text = 'Start')
         # setCustomSize(self.ButtonStartPlot, 100, 50)
@@ -99,11 +174,19 @@ class CustomMainWindow(QtGui.QMainWindow):
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(sys.exit)
 
+
+        configureAction = QtGui.QAction('&Configure Device', self)
+        configureAction.setShortcut('Ctrl+P')
+        configureAction.setStatusTip('Configure about device')
+        configureAction.triggered.connect(self.actionConfigure)
+
         self.statusBar()
 
         menubar = self.menuBar()
-        fileMenu = menubar.addMenu('&File')
+        fileMenu = menubar.addMenu('&File')        
         fileMenu.addAction(exitAction)
+        optionMenu = menubar.addMenu("&Option")
+        optionMenu.addAction(configureAction)
 
         # Define the geometry of the main window
         self.setGeometry(300, 300, 800, 400)
@@ -111,11 +194,9 @@ class CustomMainWindow(QtGui.QMainWindow):
 
         # Add the callbackfunc to ..
         self.myDataLoop = threading.Thread(name='myDataLoop', target=dataSendLoop, args=(self.addData_callbackFunc,))
-        self.myDataLoop.daemon = True
-        self.myDataLoop.start()
-        self.show()
-
-    ''''''
+        self.myDataLoop.daemon = True        
+        self.show()    
+        # self.mySerial = None
 
     def zoomBtnAction(self):
         print("zoom in")
@@ -139,6 +220,12 @@ class CustomMainWindow(QtGui.QMainWindow):
         pass
 
     def startPlot(self):
+        global flag_start
+
+        if not flag_start:
+            self.myDataLoop.start()
+            flag_start = True
+
         self.ButtonStartPlot.setEnabled(False)
         self.ButtonStopPlot.setEnabled(True)
         self.flag_pause = False
@@ -151,16 +238,8 @@ class CustomMainWindow(QtGui.QMainWindow):
         pass
 
     def searchButtonAction(self):
-
-        # if sys.platform.startswith('win'):
-        ports = ['COM%s' % (i + 1) for i in range(256)]
-        # elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-            # this excludes your current terminal "/dev/tty"
-            # ports = glob.glob('/dev/tty[A-Za-z]*')
-        # elif sys.platform.startswith('darwin'):
-            # ports = glob.glob('/dev/tty.*')
-        # else:
-            # raise EnvironmentError('Unsupported platform')
+                
+        ports = ['COM%s' % (i + 1) for i in range(256)]        
 
         self.result = []        
         for port in ports:
@@ -170,60 +249,43 @@ class CustomMainWindow(QtGui.QMainWindow):
                 self.result.append(port)
             except (OSError, serial.SerialException):
                 pass                
-        pass
-
-        # self.comPortItems = ["Select a device"]
+        pass        
+        # TODO remove duplicates
         for comPort in self.result:
-            self.comPortItems.append(comPort)
-        # del self.result
+            # print comPort
+            if not comPort in self.comPortItems:
+                self.comPortItems.append(comPort)
+
         self.selectDevice.addItems(self.comPortItems)
 
-        for comPort in self.comPortItems:
-            self.comPortItems.remove(comPort)        
-
-    def connectButtonAction(self):                
-        print "Pressed Connect !"
+    def actionConfigure(self):
+        confg_dialogue = ConfigureDialogue()
+        confg_dialogue.show()
+        confg_dialogue.exec_()
         pass
+                
+    # def connectButtonAction(self):         
+    #     self.serialPort = self.selectDevice.currentText()
+    #     print "Selected Serial Port : " + str(self.serialPort)
+
+    #     self.mySerial = serial.Serial(str(self.serialPort), 115200)
+
+    #     print "single Data : " + str(self.mySerial.read())
+    #     time.sleep(0.5)
+
+    #     # print self.mySerial.isOpen()
+    #     self.myDataLoop.start()
+    #     print "Pressed Connect !"
+    #     pass
+
+# def getData():
+#     data = self.mySerial.readline().rstrip()
+#     data.replace("\r\n", "")
+#     return data
 
 ''' End Class '''
 
-class SerialRead:
-    def __init__(self):
-        # self.ser = serial.Serial("/dev/ttyACM0", 115200)
 
-        """ Lists serial port names
-
-            :raises EnvironmentError:
-                On unsupported or unknown platforms
-            :returns:
-                A list of the serial ports available on the system
-        """
-
-        # if sys.platform.startswith('win'):
-        #     ports = ['COM%s' % (i + 1) for i in range(256)]
-        # elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-        #     # this excludes your current terminal "/dev/tty"
-        #     ports = glob.glob('/dev/tty[A-Za-z]*')
-        # elif sys.platform.startswith('darwin'):
-        #     ports = glob.glob('/dev/tty.*')
-        # else:
-        #     raise EnvironmentError('Unsupported platform')
-
-        # self.result = []
-        # for port in ports:
-        #     try:
-        #         s = serial.Serial(port)
-        #         s.close()
-        #         result.append(port)
-        #     except (OSError, serial.SerialException):
-        #         pass        
-
-        # self.ser = serial.Serial("COM31", 115200)
-
-    def getData(self):
-        data = self.ser.readline().rstrip()
-        data.replace("\r\n", "")
-        return data
 
 class CustomFigCanvas(FigureCanvas, TimedAnimation):
     def __init__(self):
@@ -260,23 +322,10 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
 
     def new_frame_seq(self):
         # x = iter(range(self.n.size))
-        return iter(range(self.n.size))
-
-    # def _init_draw(self):
-    #     lines = [self.line1, self.line1_tail, self.line1_head]
-    #     for l in lines:
-    #         l.set_data([], [])
+        return iter(range(self.n.size))    
 
     def addData(self, value):
-        self.addedData.append(value)
-
-    # def zoomIn(self, value):
-    #     bottom = self.ax1.get_ylim()[0]
-    #     top = self.ax1.get_ylim()[1]
-    #     bottom += value
-    #     top -= value
-    #     self.ax1.set_ylim(bottom, top)
-    #     self.draw()
+        self.addedData.append(value)   
 
     def _step(self, *args):
         # Extends the _step() method for the TimedAnimation class.
@@ -304,7 +353,6 @@ class CustomFigCanvas(FigureCanvas, TimedAnimation):
 
 ''' End Class '''
 
-
 # You need to setup a signal slot mechanism, to
 # send data to your GUI in a thread-safe way.
 # Believe me, if you don't do this right, things
@@ -315,36 +363,30 @@ class Communicate(QtCore.QObject):
 
 ''' End Class '''
 
-
 def dataSendLoop(addData_callbackFunc):
     # Setup the signal-slot mechanism.
     mySrc = Communicate()
     mySrc.data_signal.connect(addData_callbackFunc)
 
-    # Simulate some data
-    # n = np.linspace(0, 499, 500)
-    # y = 50 + 25*(np.sin(n / 8.3)) + 10*(np.sin(n / 7.5)) - 5*(np.sin(n / 1.5))
-    # y = y*10
-    # i = 0
+    with open('config.json', 'rb') as config_file:
+        config_raw = json.load(config_file)
+        config_file.close()
 
-
-    # while(True):
-        # if(i > 499):
-            # i = 0
-        # time.sleep(0.1)
-        # mySrc.data_signal.emit(y[i]) # <- Here you emit a signal!
-        # i += 1
-
-    # ----------- EMG Data extraction --------------
-    mySerial = SerialRead()
-    while True:
-        try:
-            mySrc.data_signal.emit(int(mySerial.getData()))
-            if(int(mySerial.getData()) > 500):
-                winsound.Beep(500, 1)
-        except:
-            pass
-        pass
+    mySerial = serial.Serial(str(config_raw["port"]), 115200)
+            
+    while True: 
+        try:                 
+        # print int(mainWindw.getData())  
+        # mySrc.data_signal.emit(int(mainWindw.getData()))                
+            data = mySerial.readline().rstrip()
+            data.replace("\r\n", "")
+            mySrc.data_signal.emit(int(data))                
+            # if(int(mySerial.getData()) > 500):
+                # winsound.Beep(500, 1)      
+            print   "data value : %d" %int(data)
+        except ValueError:
+            print "SerialException occured !"
+            
         ##
 ###
 
